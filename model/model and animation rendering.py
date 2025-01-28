@@ -6,7 +6,14 @@ from OpenGL.GL import *
 from OpenGL.GL import *
 from OpenGL.GLU import *
 import random
+from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
+import os
 
+if not os.path.exists("animation"):
+    os.makedirs("animation")
+
+frames = []
+fps = 60
 
 score = 0
 cube_position = np.array([random.uniform(-5, 5), random.uniform(2, -4), 0.0])
@@ -50,6 +57,20 @@ for i in range(num_particles):
     particles.append(position)
     prev_particles.append(position - np.array([0.0, 0.01, 0.0]))  # Slight offset for Verlet integration
 
+## Animation
+def save_frame():
+    """Zapisuje aktualną klatkę OpenGL jako obraz."""
+    buffer = glReadPixels(0, 0, 1200, 800, GL_RGBA, GL_UNSIGNED_BYTE)
+    image = pygame.image.frombuffer(buffer, (1200, 800), "RGBA")
+    return pygame.image.tostring(image, "RGB")  # Usuń kanał alfa
+
+
+def create_video(frames, output_filename, fps=60):
+    """Tworzy plik wideo z listy klatek."""
+    clip = ImageSequenceClip(frames, fps=fps)
+    clip.write_videofile(output_filename, codec="libx264")
+
+# MODEL
 def reset_game():
     global score, ball_position, ball_previous_position, ball_velocity, cube_position, wind_force
     score = 0
@@ -309,6 +330,17 @@ while running:
     draw_text((10, 720), f"Wind: {wind_force:.2f}")
 
     pygame.display.flip()
+
+    # Zapisz klatkę OpenGL jako obraz
+    frame = glReadPixels(0, 0, 1200, 800, GL_RGBA, GL_UNSIGNED_BYTE)
+    frame = np.frombuffer(frame, dtype=np.uint8).reshape(800, 1200, 4)
+    frames.append(frame[::-1])  
+
     clock.tick(60)
 
 pygame.quit()
+
+# Tworzenie animacji MP4 z zapisanych klatek
+output_file = os.path.join("animation", "game_animation.mp4")
+clip = ImageSequenceClip(frames, fps=fps)
+clip.write_videofile(output_file, codec="libx264")
