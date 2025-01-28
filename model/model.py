@@ -10,6 +10,7 @@ import random
 score = 0
 cube_position = np.array([random.uniform(-5, 5), random.uniform(2, -4), 0.0])
 cube_size = 0.5
+wind_force = 0.0  # Początkowa siła wiatru
 
 # Initialization
 pygame.init()
@@ -49,12 +50,13 @@ for i in range(num_particles):
     prev_particles.append(position - np.array([0.0, 0.01, 0.0]))  # Slight offset for Verlet integration
 
 def reset_game():
-    global score, ball_position, ball_previous_position, ball_velocity, cube_position
+    global score, ball_position, ball_previous_position, ball_velocity, cube_position, wind_force
     score = 0
     ball_position = np.array([0.0, 0.0, 0.0])
     ball_previous_position = ball_position - np.array([0.0, 0.0, 0.0])
     ball_velocity = np.array([0.0, 0.0, 0.0])
     cube_position = np.array([random.uniform(-5, 5), random.uniform(2, -4), 0.0])
+    wind_force = 0.0
 
 def draw_text(position, text, font_size=18):
     font = pygame.font.SysFont("Arial", font_size)
@@ -189,7 +191,7 @@ while running:
 
     keys = pygame.key.get_pressed()
     if keys[K_UP]:
-        if paddle_position[1] < 8.0:
+        if paddle_position[1] < 9.0:
             paddle_position[1] += 0.1
     if keys[K_DOWN]:
         if paddle_position[1] > 3.0:
@@ -223,7 +225,7 @@ while running:
         ]) * 10
     if not is_dragging:
         # Oblicz przyspieszenie (tylko grawitacja działa na piłkę w tym przykładzie)
-        acceleration = gravitational_force / mass
+        acceleration = gravitational_force / mass + np.array([wind_force, 0.0, 0.0])
 
         # Zapisujemy aktualną pozycję jako poprzednią PRZED jej zmianą
         temp_position = np.copy(ball_position)
@@ -244,11 +246,14 @@ while running:
         if distance_to_rope > segment_length:
             correction = (distance_to_rope - segment_length) * (direction_to_rope / distance_to_rope)
             ball_position -= correction
+            ball_position[0] += wind_force
+            ball_position += acceleration
 
         # Sprawdź kolizję piłki z sześcianem
         if np.linalg.norm(ball_position - cube_position) < 0.5 + (cube_size / 2):
             score += 1
             cube_position = np.array([random.uniform(-5, 5), random.uniform(2, -4), 0.0])
+            wind_force = random.uniform(-0.5, 0.5)
 
         # Sprawdź, czy piłka opuściła ekran
         if ball_position[0] < -6 or ball_position[0] > 6:
@@ -273,6 +278,7 @@ while running:
 
     # Wyświetl wynik
     draw_text((10, 750), f"Score: {score}")
+    draw_text((10, 720), f"Wind: {wind_force:.2f}")
 
     pygame.display.flip()
     clock.tick(60)
